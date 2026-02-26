@@ -1,0 +1,145 @@
+╔════════════════════════════════════════════════════════════════════════╗
+║        SMART DOWNLOAD RENAMER - FIREFOX EXTENSION                      ║
+║                       Installation Summary                              ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+✓ EXTENSION CREATED SUCCESSFULLY
+
+Project Location:
+  /Users/anthonyh/apps/SmartDownloadRenamer
+
+Files Created:
+  • manifest.json             - Extension configuration
+  • popup.html                - User interface
+  • popup.css                 - Styling (dark theme)
+  • popup.js                  - UI logic & rules management
+  • background.js             - Download event handler
+  • smart-rename-utils.js     - Core rename engine
+  • icons/ (6 files)          - 16, 48, 128px (SVG + PNG)
+  • README.md                 - Full documentation
+  • QUICKSTART.md             - Quick start guide
+  • INSTALLATION.md           - Installation instructions
+  • PROJECT_STRUCTURE.md      - File organization
+  • SUMMARY.txt               - This file
+
+QUICK START:
+═══════════════════════════════════════════════════════════════════════════
+
+1. Open Firefox
+2. Go to: about:debugging
+3. Click: "This Firefox"
+4. Click: "Load Temporary Add-on"
+5. Select: manifest.json
+6. Done! Icon will appear in toolbar
+
+Then:
+  • Click extension icon to open popup
+  • Click "Refresh" to see downloads
+  • Click ⚙️ settings to create rename rules
+  • Click "Rename" on any download to preview rules
+
+FEATURES:
+═══════════════════════════════════════════════════════════════════════════
+
+✓ View recent downloads (up to 20)
+✓ Create custom rename rules with 5 rule types:
+  - Replace text
+  - Remove text
+  - Add to end
+  - Add to beginning
+  - Move after date
+✓ Live preview before renaming
+✓ Rules persist across Firefox restarts
+✓ Dark theme UI matching SubtitlesArchiver style
+✓ No external dependencies
+✓ ~50 KB total size
+
+RULE TYPES EXPLAINED:
+═══════════════════════════════════════════════════════════════════════════
+
+1. REPLACE
+   Find "text" and replace with "new text"
+   Example: "video.mp4" → find "video" → replace "movie" → "movie.mp4"
+
+2. REMOVE
+   Delete specified text from filename
+   Example: "file (1).pdf" → remove "(1)" → "file .pdf"
+
+3. ADD TO END
+   Append text before file extension
+   Example: "doc.pdf" → add "[ARCHIVE]" → "doc [ARCHIVE].pdf"
+
+4. ADD TO BEGINNING
+   Prepend text to start of filename
+   Example: "report.pdf" → add "2024-02-25 " → "2024-02-25 report.pdf"
+
+5. MOVE AFTER DATE
+   Reposition text after YYYY MM DD date prefix
+   Example: "2024 02 25 report [ARCHIVE]" → move "[ARCHIVE]" after date
+           → "2024 02 25 [ARCHIVE] report"
+
+DOCUMENTATION:
+═══════════════════════════════════════════════════════════════════════════
+
+Start here:            QUICKSTART.md
+Full documentation:    README.md
+Installation details:  INSTALLATION.md
+File organization:     PROJECT_STRUCTURE.md
+
+BROWSER SUPPORT:
+═══════════════════════════════════════════════════════════════════════════
+
+✓ Firefox 121+
+✗ Chrome (downloads API incompatible)
+✗ Safari (not supported)
+
+PERMISSIONS:
+═══════════════════════════════════════════════════════════════════════════
+
+The extension requests:
+  • downloads   - Access download history
+  • storage     - Save your rename rules
+
+That's it! No internet, no tracking, no telemetry.
+
+DEVELOPMENT INFO:
+═══════════════════════════════════════════════════════════════════════════
+
+Language: JavaScript (vanilla, no frameworks)
+Size: ~50 KB total
+Manifest: V3
+Architecture: Popup UI + Service Worker
+Storage: Firefox local storage
+Based on: SubtitlesArchiver smart rename system
+
+NEXT STEPS:
+═══════════════════════════════════════════════════════════════════════════
+
+1. Load the extension following the Quick Start above
+2. Download a test file to verify it appears in the extension
+3. Create your first rename rule using the ⚙️ settings
+4. Apply a rule to a download and check the preview
+5. Enjoy cleaner, better-organized downloads!
+
+TROUBLESHOOTING:
+═══════════════════════════════════════════════════════════════════════════
+
+Icon not showing?
+  → Restart Firefox
+  → Go to about:debugging and reload extension
+
+Downloads not appearing?
+  → Download a file first
+  → Click extension icon
+  → Click "Refresh" button
+
+Rules not working?
+  → Make sure "Enable Rename Rules" is toggled ON
+  → Verify you have at least one rule configured
+  → Check preview to see if rules are being applied
+
+See INSTALLATION.md for detailed troubleshooting.
+
+═══════════════════════════════════════════════════════════════════════════
+Ready to use! Happy downloading and renaming! 🎉
+═══════════════════════════════════════════════════════════════════════════
