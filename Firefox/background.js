@@ -1,121 +1,128 @@
 /**
- * Background Script
+ * Background Script for Firefox (Desktop & Android)
  * Intercepts downloads before filename is determined and applies rename rules.
  */
 
-/**
- * Tracking set to avoid infinite loops when we restart a download with a new name.
- */
 const renamingProcessIds = new Set();
 
 /**
- * Firefox does not support browser.downloads.onDeterminingFilename.
- * Instead, we use onCreated to intercept the download, cancel it, 
- * and restart it with the requested name.
+ * ANDROID FALLBACK: Use webRequest to rename files via Content-Disposition headers.
+ * This is necessary because Firefox for Android (Fenix) does not yet support the downloads API.
  */
-browser.downloads.onCreated.addListener(async (downloadItem) => {
-  // If we started this download ourselves as part of a rename, don't intercept it again.
-  if (renamingProcessIds.has(downloadItem.id)) {
-    renamingProcessIds.delete(downloadItem.id);
-    return;
-  }
+if (browser.webRequest && browser.webRequest.onHeadersReceived) {
+  browser.webRequest.onHeadersReceived.addListener(
+    async (details) => {
+      // Don't intercept if rules are disabled
+      const result = await browser.storage.local.get(['renameRulesEnabled', 'renameRules']);
+      if (!result.renameRulesEnabled || !result.renameRules?.length) return;
 
-  // Only handle downloads that are actually in progress
-  if (downloadItem.state !== 'in_progress') {
-    return;
-  }
+      const responseHeaders = details.responseHeaders;
+      let modified = false;
 
-  const result = await browser.storage.local.get(['renameRulesEnabled', 'renameRules']);
-  const renameRulesEnabled = result.renameRulesEnabled || false;
-  const renameRules = result.renameRules || [];
+      for (let header of responseHeaders) {
+        if (header.name.toLowerCase() === 'content-disposition') {
+          // Look for filename="name.ext" or filename*=UTF-8''name.ext
+          const cdValue = header.value;
 
-  if (!renameRulesEnabled || renameRules.length === 0) {
-    return;
-  }
+          // Try to extract the filename part
+          let filename = '';
+          let match = cdValue.match(/filename\*?=["']?([^"';\n]+)["']?/i);
 
-  // Get the original filename (basename only)
-  // Firefox's downloadItem.filename is the full path or recommended name.
-  let originalFilename = downloadItem.filename || '';
-  if (!originalFilename && downloadItem.url) {
-    try {
-      const url = new URL(downloadItem.url);
-      originalFilename = url.pathname.split('/').pop();
-    } catch (e) { }
-  }
+          if (match) {
+            filename = match[1];
+            // Basic handling for filename* (RFC 5987)
+            if (cdValue.toLowerCase().includes('filename*=')) {
+              try {
+                const parts = filename.split("''");
+                if (parts.length > 1) filename = decodeURIComponent(parts[1]);
+              } catch (e) { /* ignore encoding errors */ }
+            }
 
-  // Extract just the filename part if it's a path
-  const filenamePart = originalFilename.split(/[\\/]/).pop();
-  if (!filenamePart) return;
+            const newFilename = SmartRenameUtils.applyRules(filename, result.renameRules);
 
-  const newFilename = SmartRenameUtils.applyRules(filenamePart, renameRules);
+            if (newFilename !== filename) {
+              // Replace the filename in the header string
+              header.value = cdValue.replace(filename, newFilename);
+              modified = true;
+              console.log(`Smart Renamer (Android/Headers): ${filename} -> ${newFilename}`);
+            }
+          }
+        }
+      }
 
-  if (newFilename !== filenamePart) {
-    try {
-      // 1. Cancel the original download
-      await browser.downloads.cancel(downloadItem.id);
+      if (modified) {
+        return { responseHeaders };
+      }
+    },
+    { urls: ["<all_urls>"], types: ["main_frame", "sub_frame", "other"] },
+    ["blocking", "responseHeaders"]
+  );
+}
 
-      // 2. Clear the canceled download from history to keep it clean
-      await browser.downloads.erase({ id: downloadItem.id });
-
-      // 3. Restart the download with the new name
-      // Note: This won't work for certain POST downloads or those requiring 
-      // specific request-state that cannot be captured in a simple URL redirect.
-      const newId = await browser.downloads.download({
-        url: downloadItem.url,
-        filename: newFilename,
-        conflictAction: 'uniquify',
-        saveAs: false
-      });
-
-      // 4. Mark the new download ID so we don't process it again
-      renamingProcessIds.add(newId);
-
-      console.log(`Smart Renamer: Intercepted ${filenamePart} -> ${newFilename}`);
-    } catch (error) {
-      console.error('Smart Renamer Error:', error);
+/**
+ * DESKTOP MODE: Use the downloads API for more robust renaming (restart-based).
+ */
+if (browser.downloads && browser.downloads.onCreated) {
+  browser.downloads.onCreated.addListener(async (downloadItem) => {
+    // If we started this download ourselves as part of a rename, don't intercept it again.
+    if (renamingProcessIds.has(downloadItem.id)) {
+      renamingProcessIds.delete(downloadItem.id);
+      return;
     }
-  }
-});
 
-// Fallback for Chromium-based browsers if the same code is used there
-if (browser.downloads.onDeterminingFilename) {
-  browser.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
-    browser.storage.local.get(['renameRulesEnabled', 'renameRules'], (result) => {
-      const renameRulesEnabled = result.renameRulesEnabled || false;
-      const renameRules = result.renameRules || [];
+    // Only handle downloads that are actually in progress
+    if (downloadItem.state !== 'in_progress') {
+      return;
+    }
 
-      if (!renameRulesEnabled || renameRules.length === 0) {
-        suggest();
-        return;
+    const result = await browser.storage.local.get(['renameRulesEnabled', 'renameRules']);
+    const renameRulesEnabled = result.renameRulesEnabled || false;
+    const renameRules = result.renameRules || [];
+
+    if (!renameRulesEnabled || renameRules.length === 0) {
+      return;
+    }
+
+    // Get the original filename (basename only)
+    let originalFilename = downloadItem.filename || '';
+    if (!originalFilename && downloadItem.url) {
+      try {
+        const url = new URL(downloadItem.url);
+        originalFilename = url.pathname.split('/').pop();
+      } catch (e) { }
+    }
+
+    const filenamePart = originalFilename.split(/[\\/]/).pop();
+    if (!filenamePart) return;
+
+    const newFilename = SmartRenameUtils.applyRules(filenamePart, renameRules);
+
+    if (newFilename !== filenamePart) {
+      try {
+        // Cancel and restart with new name
+        await browser.downloads.cancel(downloadItem.id);
+        await browser.downloads.erase({ id: downloadItem.id });
+
+        const newId = await browser.downloads.download({
+          url: downloadItem.url,
+          filename: newFilename,
+          conflictAction: 'uniquify',
+          saveAs: false
+        });
+
+        renamingProcessIds.add(newId);
+        console.log(`Smart Renamer (Desktop): ${filenamePart} -> ${newFilename}`);
+      } catch (error) {
+        console.error('Smart Renamer Error:', error);
       }
-
-      const filename = downloadItem.filename || '';
-      if (!filename) {
-        suggest();
-        return;
-      }
-
-      const lastSlash = filename.lastIndexOf('/');
-      const dir = lastSlash >= 0 ? filename.substring(0, lastSlash + 1) : '';
-      const justFilename = lastSlash >= 0 ? filename.substring(lastSlash + 1) : filename;
-
-      const newFilename = SmartRenameUtils.applyRules(justFilename, renameRules);
-
-      if (newFilename !== justFilename) {
-        suggest({ filename: dir + newFilename, conflictAction: 'uniquify' });
-      } else {
-        suggest();
-      }
-    });
-
-    return true;
+    }
   });
 }
 
 // Message listener for popup communication
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'resumeDownload') {
-    chrome.downloads.resume(request.downloadId, () => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'resumeDownload' && browser.downloads) {
+    browser.downloads.resume(request.downloadId, () => {
       sendResponse({ success: true });
     });
     return true;

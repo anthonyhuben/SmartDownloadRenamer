@@ -81,7 +81,7 @@ function loadDownloads() {
  */
 function displayDownloads() {
   downloadCountEl.textContent = recentDownloads.length;
-  downloadsListEl.innerHTML = '';
+  downloadsListEl.textContent = '';
 
   recentDownloads.forEach((download, index) => {
     const downloadEl = document.createElement('div');
@@ -90,25 +90,50 @@ function displayDownloads() {
     const filename = download.filename ? download.filename.split('/').pop() : 'unknown';
     const filesize = download.fileSize ? formatFileSize(download.fileSize) : 'Unknown size';
     const state = download.state || 'unknown';
-    const stateBadge = `<span class="download-badge">${state.charAt(0).toUpperCase() + state.slice(1)}</span>`;
+    // Build the download item DOM manually to avoid innerHTML warnings
+    const header = document.createElement('div');
+    header.className = 'download-item-header';
 
-    downloadEl.innerHTML = `
-      <div class="download-item-header">
-        <span class="download-filename">${escapeHtml(filename)}</span>
-        ${stateBadge}
-      </div>
-      <div class="download-meta">Size: ${filesize}</div>
-      <div class="download-actions">
-        <button class="btn-small btn-rename" data-index="${index}">
-          <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor">
-            <path d="M3 17h5v-5H3v5zm9-13h3l-8 8v3h3l8-8v-3z" stroke-width="1.2" fill="currentColor"/>
-          </svg>
-          Rename
-        </button>
-      </div>
-    `;
+    const filenameSpan = document.createElement('span');
+    filenameSpan.className = 'download-filename';
+    filenameSpan.textContent = filename;
+    header.appendChild(filenameSpan);
 
-    const renameBtn = downloadEl.querySelector('.btn-rename');
+    const badge = document.createElement('span');
+    badge.className = 'download-badge';
+    badge.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+    header.appendChild(badge);
+
+    const meta = document.createElement('div');
+    meta.className = 'download-meta';
+    meta.textContent = `Size: ${filesize}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'download-actions';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'btn-small btn-rename';
+    renameBtn.dataset.index = index;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '14');
+    svg.setAttribute('height', '14');
+    svg.setAttribute('viewBox', '0 0 18 18');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M3 17h5v-5H3v5zm9-13h3l-8 8v3h3l8-8v-3z');
+    path.setAttribute('stroke-width', '1.2');
+    path.setAttribute('fill', 'currentColor');
+
+    svg.appendChild(path);
+    renameBtn.appendChild(svg);
+    renameBtn.appendChild(document.createTextNode(' Rename'));
+
+    downloadEl.appendChild(header);
+    downloadEl.appendChild(meta);
+    downloadEl.appendChild(actions);
+
     renameBtn.addEventListener('click', () => {
       showRenameModal(download, index);
     });
@@ -130,36 +155,95 @@ function showRenameModal(download, index) {
     ? SmartRenameUtils.applyRules(currentFilename, renameRules)
     : currentFilename;
 
-  modalBody.innerHTML = `
-    <div>
-      <div class="modal-actions">
-        <button class="btn btn-primary" id="confirm-rename">✓ Apply</button>
-        <button class="btn btn-secondary" id="cancel-modal">Cancel</button>
-      </div>
+  modalBody.textContent = '';
 
-      <label style="display: block; margin-bottom: 8px; font-weight: 500;">Current Filename:</label>
-      <div style="background: rgba(161, 239, 228, 0.05); padding: 8px 10px; border-radius: 4px; margin-bottom: 16px; font-family: 'SF Mono', monospace; font-size: 12px; word-break: break-all; color: #f3e8af;">
-        ${escapeHtml(currentFilename)}
-      </div>
+  const container = document.createElement('div');
 
-      ${renameRulesEnabled && renameRules.length > 0 ? `
-        <label style="display: block; margin-bottom: 8px; font-weight: 500;">Preview:</label>
-        <div style="background: rgba(161, 239, 228, 0.15); padding: 8px 10px; border-radius: 4px; margin-bottom: 16px; border-left: 3px solid #a1efe4; font-family: 'SF Mono', monospace; font-size: 12px; word-break: break-all; color: #a1efe4;">
-          ${escapeHtml(previewFilename)}
-        </div>
-      ` : `
-        <div style="background: rgba(255, 193, 7, 0.1); border-left: 3px solid #ffc107; padding: 8px 12px; margin-bottom: 16px; border-radius: 4px; font-size: 13px; color: #ffc107;">
-          ⓘ No rename rules configured
-        </div>
-      `}
+  const actions = document.createElement('div');
+  actions.className = 'modal-actions';
 
-      <label style="display: block; margin-bottom: 8px; font-weight: 500;">New Filename:</label>
-      <input type="text" class="filename-input" id="new-filename" value="${escapeHtml(previewFilename)}" />
-    </div>
-  `;
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'btn btn-primary';
+  confirmBtn.id = 'confirm-rename';
+  confirmBtn.textContent = '✓ Apply';
 
-  const confirmBtn = document.getElementById('confirm-rename');
-  const cancelBtn = document.getElementById('cancel-modal');
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn btn-secondary';
+  cancelBtn.id = 'cancel-modal';
+  cancelBtn.textContent = 'Cancel';
+
+  actions.appendChild(confirmBtn);
+  actions.appendChild(cancelBtn);
+  container.appendChild(actions);
+
+  const curLabel = document.createElement('label');
+  curLabel.style.display = 'block';
+  curLabel.style.marginBottom = '8px';
+  curLabel.style.fontWeight = '500';
+  curLabel.textContent = 'Current Filename:';
+  container.appendChild(curLabel);
+
+  const curBox = document.createElement('div');
+  curBox.style.background = 'rgba(161, 239, 228, 0.05)';
+  curBox.style.padding = '8px 10px';
+  curBox.style.borderRadius = '4px';
+  curBox.style.marginBottom = '16px';
+  curBox.style.fontFamily = "'SF Mono', monospace";
+  curBox.style.fontSize = '12px';
+  curBox.style.wordBreak = 'break-all';
+  curBox.style.color = '#f3e8af';
+  curBox.textContent = currentFilename;
+  container.appendChild(curBox);
+
+  if (renameRulesEnabled && renameRules.length > 0) {
+    const prevLabel = document.createElement('label');
+    prevLabel.style.display = 'block';
+    prevLabel.style.marginBottom = '8px';
+    prevLabel.style.fontWeight = '500';
+    prevLabel.textContent = 'Preview:';
+    container.appendChild(prevLabel);
+
+    const prevBox = document.createElement('div');
+    prevBox.style.background = 'rgba(161, 239, 228, 0.15)';
+    prevBox.style.padding = '8px 10px';
+    prevBox.style.borderRadius = '4px';
+    prevBox.style.marginBottom = '16px';
+    prevBox.style.borderLeft = '3px solid #a1efe4';
+    prevBox.style.fontFamily = "'SF Mono', monospace";
+    prevBox.style.fontSize = '12px';
+    prevBox.style.wordBreak = 'break-all';
+    prevBox.style.color = '#a1efe4';
+    prevBox.textContent = previewFilename;
+    container.appendChild(prevBox);
+  } else {
+    const infoBox = document.createElement('div');
+    infoBox.style.background = 'rgba(255, 193, 7, 0.1)';
+    infoBox.style.borderLeft = '3px solid #ffc107';
+    infoBox.style.padding = '8px 12px';
+    infoBox.style.marginBottom = '16px';
+    infoBox.style.borderRadius = '4px';
+    infoBox.style.fontSize = '13px';
+    infoBox.style.color = '#ffc107';
+    infoBox.textContent = 'ⓘ No rename rules configured';
+    container.appendChild(infoBox);
+  }
+
+  const newLabel = document.createElement('label');
+  newLabel.style.display = 'block';
+  newLabel.style.marginBottom = '8px';
+  newLabel.style.fontWeight = '500';
+  newLabel.textContent = 'New Filename:';
+  container.appendChild(newLabel);
+
+  const newInp = document.createElement('input');
+  newInp.type = 'text';
+  newInp.className = 'filename-input';
+  newInp.id = 'new-filename';
+  newInp.value = previewFilename;
+  container.appendChild(newInp);
+
+  modalBody.appendChild(container);
+
   const filenameInput = document.getElementById('new-filename');
 
   if (confirmBtn) {
@@ -261,21 +345,68 @@ function showRenameRulesSettings() {
     { value: 'moveAfterDate', label: 'Move After Date' }
   ];
 
-  function typeOptions(selected) {
-    return RULE_TYPES.map(t =>
-      `<option value="${t.value}"${t.value === selected ? ' selected' : ''}>${t.label}</option>`
-    ).join('');
-  }
 
-  function buildRuleHTML(rule, index) {
-    let inputs = '';
+  function buildRuleDOM(rule, index) {
+    const row = document.createElement('div');
+    row.className = 'sr-rule';
+    row.dataset.index = index;
+
+    const reorder = document.createElement('div');
+    reorder.className = 'sr-reorder';
+
+    const moveUp = document.createElement('button');
+    moveUp.className = 'sr-move-up';
+    moveUp.dataset.index = index;
+    moveUp.title = 'Move Up';
+    moveUp.textContent = '▲';
+    if (index === 0) moveUp.disabled = true;
+
+    const moveDown = document.createElement('button');
+    moveDown.className = 'sr-move-down';
+    moveDown.dataset.index = index;
+    moveDown.title = 'Move Down';
+    moveDown.textContent = '▼';
+    if (index === editingRules.length - 1) moveDown.disabled = true;
+
+    reorder.appendChild(moveUp);
+    reorder.appendChild(moveDown);
+    row.appendChild(reorder);
+
+    const typeSelect = document.createElement('select');
+    typeSelect.className = 'sr-type';
+    RULE_TYPES.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.value;
+      opt.textContent = t.label;
+      if (t.value === rule.type) opt.selected = true;
+      typeSelect.appendChild(opt);
+    });
+    row.appendChild(typeSelect);
+
     if (rule.type === 'replace') {
-      inputs = `
-        <input class="sr-input" data-field="find" placeholder="find text…" value="${escapeHtml(rule.find || '')}">
-        <span class="sr-arrow">→</span>
-        <input class="sr-input" data-field="replaceWith" placeholder="replace with…" value="${escapeHtml(rule.replaceWith || '')}">`;
+      const findInp = document.createElement('input');
+      findInp.className = 'sr-input';
+      findInp.dataset.field = 'find';
+      findInp.placeholder = 'find text…';
+      findInp.value = rule.find || '';
+      row.appendChild(findInp);
+
+      const arrow = document.createElement('span');
+      arrow.className = 'sr-arrow';
+      arrow.textContent = '→';
+      row.appendChild(arrow);
+
+      const replaceInp = document.createElement('input');
+      replaceInp.className = 'sr-input';
+      replaceInp.dataset.field = 'replaceWith';
+      replaceInp.placeholder = 'replace with…';
+      replaceInp.value = rule.replaceWith || '';
+      row.appendChild(replaceInp);
     } else if (['prependDate', 'underscoreSpaces', 'removeSpecial', 'titleCase', 'camelCase'].includes(rule.type)) {
-      inputs = `<div class="sr-no-input">No configuration needed</div>`;
+      const noInp = document.createElement('div');
+      noInp.className = 'sr-no-input';
+      noInp.textContent = 'No configuration needed';
+      row.appendChild(noInp);
     } else {
       const ph = {
         remove: 'text to remove…',
@@ -283,28 +414,41 @@ function showRenameRulesSettings() {
         addBeginning: 'text to add…',
         moveAfterDate: 'text to move…'
       }[rule.type] || 'text…';
-      inputs = `<input class="sr-input" data-field="text" placeholder="${ph}" value="${escapeHtml(rule.text || '')}">`;
+
+      const textInp = document.createElement('input');
+      textInp.className = 'sr-input';
+      textInp.dataset.field = 'text';
+      textInp.placeholder = ph;
+      textInp.value = rule.text || '';
+      row.appendChild(textInp);
     }
 
-    return `
-      <div class="sr-rule" data-index="${index}">
-        <div class="sr-reorder">
-          <button class="sr-move-up" data-index="${index}" title="Move Up" ${index === 0 ? 'disabled' : ''}>▲</button>
-          <button class="sr-move-down" data-index="${index}" title="Move Down" ${index === editingRules.length - 1 ? 'disabled' : ''}>▼</button>
-        </div>
-        <select class="sr-type">${typeOptions(rule.type)}</select>
-        ${inputs}
-        <button class="sr-delete" data-index="${index}" title="Remove rule">×</button>
-      </div>`;
+    const delBtn = document.createElement('button');
+    delBtn.className = 'sr-delete';
+    delBtn.dataset.index = index;
+    delBtn.title = 'Remove rule';
+    delBtn.textContent = '×';
+    row.appendChild(delBtn);
+
+    return row;
   }
 
   function renderRules() {
-    const container = document.getElementById('sr-rules-container');
-    if (!container) return;
+    const rulesContainer = document.getElementById('sr-rules-container');
+    if (!rulesContainer) return;
+    rulesContainer.textContent = '';
     if (editingRules.length === 0) {
-      container.innerHTML = '<p style="color:#666;font-size:12px;text-align:center;padding:12px 0;">No rules yet. Click "+ Add Rule" to get started.</p>';
+      const p = document.createElement('p');
+      p.style.color = '#666';
+      p.style.fontSize = '12px';
+      p.style.textAlign = 'center';
+      p.style.padding = '12px 0';
+      p.textContent = 'No rules yet. Click "+ Add Rule" to get started.';
+      rulesContainer.appendChild(p);
     } else {
-      container.innerHTML = editingRules.map((r, i) => buildRuleHTML(r, i)).join('');
+      editingRules.forEach((r, i) => {
+        rulesContainer.appendChild(buildRuleDOM(r, i));
+      });
     }
     attachRuleListeners();
   }
@@ -370,36 +514,105 @@ function showRenameRulesSettings() {
 
   const enabledAttr = renameRulesEnabled ? 'checked' : '';
 
-  modalBody.innerHTML = `
-    <div>
-      <div class="modal-actions">
-        <button class="btn btn-primary" id="sr-save">✓ Save</button>
-        <button class="btn btn-secondary" id="sr-cancel">Cancel</button>
-      </div>
+  modalBody.textContent = '';
+  const srContainer = document.createElement('div');
 
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:10px 12px;background:rgba(161,239,228,0.07);border:1px solid rgba(161,239,228,0.2);border-radius:6px;">
-        <div>
-          <div style="font-weight:600;font-size:13px;color:#f8f8f2;">Enable Rename Rules</div>
-          <div style="font-size:11px;color:#666;margin-top:2px;">Apply rules when renaming downloads</div>
-        </div>
-        <label class="sr-toggle">
-          <input type="checkbox" id="sr-enabled" ${enabledAttr}>
-          <span class="sr-slider"></span>
-        </label>
-      </div>
+  const srActions = document.createElement('div');
+  srActions.className = 'modal-actions';
+  const srSaveBtn = document.createElement('button');
+  srSaveBtn.className = 'btn btn-primary';
+  srSaveBtn.id = 'sr-save';
+  srSaveBtn.textContent = '✓ Save';
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:13px;font-weight:500;color:#a1efe4;">Rules</span>
-        <button id="sr-add-rule" class="sr-add-rule-btn" style="width:auto;margin:0;padding:4px 12px;font-size:12px;">+ Add Rule</button>
-      </div>
+  const srCancelBtn = document.createElement('button');
+  srCancelBtn.className = 'btn btn-secondary';
+  srCancelBtn.id = 'sr-cancel';
+  srCancelBtn.textContent = 'Cancel';
 
-      <div id="sr-rules-container"></div>
+  srActions.appendChild(srSaveBtn);
+  srActions.appendChild(srCancelBtn);
+  srContainer.appendChild(srActions);
 
-      <div style="font-size:11px;color:#555;margin-top:4px;line-height:1.5;">
-        Rules apply in order to filenames. "Move After Date" inserts text immediately after the <em>YYYY MM DD</em> prefix.
-      </div>
-    </div>
-  `;
+  const srToggleRow = document.createElement('div');
+  srToggleRow.style.display = 'flex';
+  srToggleRow.style.alignItems = 'center';
+  srToggleRow.style.justifyContent = 'space-between';
+  srToggleRow.style.marginBottom = '16px';
+  srToggleRow.style.padding = '10px 12px';
+  srToggleRow.style.background = 'rgba(161,239,228,0.07)';
+  srToggleRow.style.border = '1px solid rgba(161,239,228,0.2)';
+  srToggleRow.style.borderRadius = '6px';
+
+  const srToggleText = document.createElement('div');
+  const srToggleTitle = document.createElement('div');
+  srToggleTitle.style.fontWeight = '600';
+  srToggleTitle.style.fontSize = '13px';
+  srToggleTitle.style.color = '#f8f8f2';
+  srToggleTitle.textContent = 'Enable Rename Rules';
+  srToggleText.appendChild(srToggleTitle);
+
+  const srToggleSub = document.createElement('div');
+  srToggleSub.style.fontSize = '11px';
+  srToggleSub.style.color = '#666';
+  srToggleSub.style.marginTop = '2px';
+  srToggleSub.textContent = 'Apply rules when renaming downloads';
+  srToggleText.appendChild(srToggleSub);
+  srToggleRow.appendChild(srToggleText);
+
+  const srLabel = document.createElement('label');
+  srLabel.className = 'sr-toggle';
+  const srCheck = document.createElement('input');
+  srCheck.type = 'checkbox';
+  srCheck.id = 'sr-enabled';
+  srCheck.checked = renameRulesEnabled;
+  const srSlider = document.createElement('span');
+  srSlider.className = 'sr-slider';
+  srLabel.appendChild(srCheck);
+  srLabel.appendChild(srSlider);
+  srToggleRow.appendChild(srLabel);
+  srContainer.appendChild(srToggleRow);
+
+  const srHeaderRow = document.createElement('div');
+  srHeaderRow.style.display = 'flex';
+  srHeaderRow.style.justifyContent = 'space-between';
+  srHeaderRow.style.alignItems = 'center';
+  srHeaderRow.style.marginBottom = '8px';
+
+  const srHeaderTitle = document.createElement('span');
+  srHeaderTitle.style.fontSize = '13px';
+  srHeaderTitle.style.fontWeight = '500';
+  srHeaderTitle.style.color = '#a1efe4';
+  srHeaderTitle.textContent = 'Rules';
+  srHeaderRow.appendChild(srHeaderTitle);
+
+  const srAddBtn = document.createElement('button');
+  srAddBtn.id = 'sr-add-rule';
+  srAddBtn.className = 'sr-add-rule-btn';
+  srAddBtn.style.width = 'auto';
+  srAddBtn.style.margin = '0';
+  srAddBtn.style.padding = '4px 12px';
+  srAddBtn.style.fontSize = '12px';
+  srAddBtn.textContent = '+ Add Rule';
+  srHeaderRow.appendChild(srAddBtn);
+  srContainer.appendChild(srHeaderRow);
+
+  const srRuleCont = document.createElement('div');
+  srRuleCont.id = 'sr-rules-container';
+  srContainer.appendChild(srRuleCont);
+
+  const srFooter = document.createElement('div');
+  srFooter.style.fontSize = '11px';
+  srFooter.style.color = '#555';
+  srFooter.style.marginTop = '4px';
+  srFooter.style.lineHeight = '1.5';
+  srFooter.textContent = 'Rules apply in order to filenames. "Move After Date" inserts text immediately after the ';
+  const em = document.createElement('em');
+  em.textContent = 'YYYY MM DD';
+  srFooter.appendChild(em);
+  srFooter.appendChild(document.createTextNode(' prefix.'));
+  srContainer.appendChild(srFooter);
+
+  modalBody.appendChild(srContainer);
 
   renderRules();
 
@@ -426,16 +639,6 @@ function showRenameRulesSettings() {
   modalEl.style.display = 'block';
 }
 
-function escapeHtml(text) {
-  const map = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;'
-  };
-  return text.replace(/[&<>"']/g, m => map[m]);
-}
 
 function formatFileSize(bytes) {
   if (bytes === 0) return '0 Bytes';

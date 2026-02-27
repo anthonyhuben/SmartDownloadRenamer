@@ -5,7 +5,9 @@
   "description": "Rename downloaded files based on custom rules",
   "permissions": [
     "downloads",
-    "storage"
+    "storage",
+    "webRequest",
+    "webRequestBlocking"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -19,11 +21,28 @@
     }
   },
   "background": {
-    "scripts": ["smart-rename-utils.js", "background.js"]
+    "scripts": [
+      "smart-rename-utils.js",
+      "background.js"
+    ]
   },
   "icons": {
     "16": "icons/icon-16.svg",
     "48": "icons/icon-48.svg",
     "128": "icons/icon-128.svg"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{4a2f9f5c-1b8d-4e9a-9c5f-2d8b4a6c9e1f}",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ],
+        "optional": []
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "120.0"
+    }
   }
 }

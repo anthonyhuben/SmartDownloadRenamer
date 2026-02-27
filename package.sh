@@ -159,9 +159,11 @@ build_firefox() {
     cd "${browser_dir}"
 
     # Run web-ext build (output goes to DIST_DIR with lowercase name)
+    # Exclude documentation and metadata files
     web-ext build \
         --source-dir="${browser_dir}" \
         --artifacts-dir="${DIST_DIR}" \
+        --ignore-files "*.md" "*.txt" ".DS_Store" \
         --overwrite-dest \
         2>&1 | grep -v "^addons:" || true
 
